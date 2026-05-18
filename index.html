@@ -220,7 +220,7 @@ h1,h2,h3,.syne{font-family:'Syne',sans-serif}
     </div>
     <div class="topbar-right">
       <button class="icon-btn" onclick="refreshActual()" title="Actualizar">↻</button>
-      <button class="icon-btn" onclick="abrirSetup()" title="Configurar">⚙</button>
+
     </div>
   </div>
 
@@ -569,18 +569,7 @@ h1,h2,h3,.syne{font-family:'Syne',sans-serif}
   </div>
 </div>
 
-<div class="modal" id="modalSetup" onclick="cerrarSiAfuera(event,'modalSetup')">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title">⚙️ Configuración</div>
-    <div class="modal-sub">URL de tu Google Apps Script Web App</div>
-    <div class="form-group">
-      <label class="form-label">Web App URL</label>
-      <input type="url" class="form-input" id="setupUrl" placeholder="https://script.google.com/macros/s/...">
-    </div>
-    <button class="submit-btn" onclick="guardarConfig()">Guardar y conectar</button>
-  </div>
-</div>
+
 
 <!-- OVERLAY -->
 <div class="overlay" id="overlay">
@@ -593,8 +582,8 @@ h1,h2,h3,.syne{font-family:'Syne',sans-serif}
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────
-const STORAGE_KEY = 'cq_webapp_url';
-let WEB_APP_URL = localStorage.getItem(STORAGE_KEY) || '';
+// Proxy URL — Cloudflare Worker actúa de intermediario con Apps Script
+const API_URL = 'https://ventas.asudasassi.workers.dev/api';
 
 const MESES_NOMBRES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                        'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -609,13 +598,9 @@ window.onload = () => {
   // Set current month for estado
   document.getElementById('er-mes').value = new Date().getMonth() + 1;
 
-  if (!WEB_APP_URL) {
-    setTimeout(abrirSetup, 500);
-  } else {
-    calcularPeriodo();
-    cargarDashboard();
-    cargarProveedores();
-  }
+  calcularPeriodo();
+  cargarDashboard();
+  cargarProveedores();
 };
 
 // ── NAVEGACIÓN ───────────────────────────────────────────
@@ -684,12 +669,11 @@ function aplicarRango() {
   if (periodoActual.fi && periodoActual.ff) cargarDashboard();
 }
 
-// ── API CALL ──────────────────────────────────────────────
+// ── API CALL via Cloudflare Proxy ─────────────────────────
 async function apiCall(accion, params = {}) {
-  if (!WEB_APP_URL) { toast('Configurá la URL del servidor primero', 'error'); return null; }
-  const url = new URL(WEB_APP_URL);
+  const url = new URL(API_URL);
   url.searchParams.set('accion', accion);
-  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
   const res = await fetch(url.toString());
   return res.json();
 }
@@ -935,22 +919,7 @@ async function generarPDF() {
   } catch(e) { loading(false); toast('Error: '+e.message,'error'); }
 }
 
-// ── SETUP ─────────────────────────────────────────────────
-function abrirSetup() {
-  document.getElementById('setupUrl').value = WEB_APP_URL;
-  document.getElementById('modalSetup').classList.add('show');
-}
-function guardarConfig() {
-  const url = document.getElementById('setupUrl').value.trim();
-  if (!url.startsWith('https://script.google.com')) { toast('URL inválida','error'); return; }
-  WEB_APP_URL = url;
-  localStorage.setItem(STORAGE_KEY, url);
-  cerrarModal('modalSetup');
-  toast('✓ Conectado correctamente', 'ok');
-  calcularPeriodo();
-  cargarDashboard();
-  cargarProveedores();
-}
+
 
 // ── HELPERS ──────────────────────────────────────────────
 function cerrarModal(id) { document.getElementById(id).classList.remove('show'); }
